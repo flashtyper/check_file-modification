@@ -1,0 +1,37 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Std;
+use Monitoring::Plugin;
+use Time::Seconds;
+
+
+my $plugin = Monitoring::Plugin->new(
+  usage => "Usage: %s [ -f|--file=<file> ] [ -c|--critical=<threshold> ]",
+  # shortname => 'FILE MODIFICATION'
+);
+$plugin->add_arg(
+        spec => 'critical|c=i',
+        help => 'critical threshold in seconds',
+        required => 1
+);
+$plugin->add_arg(
+        spec => 'file|f=s',
+        help => 'path to file',
+        required => 1
+);
+$plugin->getopts;
+
+
+open(FH, '<', $plugin->opts->file) or die $!;
+my $file_timestamp = (stat(FH))[9];
+close (FH);
+my $mod_diff = time() - $file_timestamp;
+
+
+my $t = Time::Seconds->new($mod_diff);
+$plugin->plugin_exit(
+      return_code => $plugin->check_threshold(check => $mod_diff, critical => $plugin->opts->critical),
+      message     => "last modified: " . $t->pretty
+);
